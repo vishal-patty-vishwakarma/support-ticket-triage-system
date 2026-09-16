@@ -328,7 +328,8 @@ def test_analyze_success_response_contains_expected_fields(client_success, auth_
     assert data["id"] is not None
     assert data["ticket_id"] == sample_ticket_id
     assert data["provider"] == "ollama"
-    assert data["model"] == "qwen3:4b"
+    from app.config import get_settings
+    assert data["model"] == get_settings().ollama_model
     assert data["status"] == "success"
     assert data["summary"] == _VALID_AI_OUTPUT["summary"]
     assert data["category"] == _VALID_AI_OUTPUT["category"]
