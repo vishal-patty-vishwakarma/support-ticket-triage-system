@@ -3,7 +3,7 @@ from app.schemas.ai import AIAnalysisOutput, AIAnalysisRunResponse
 from app.schemas.auth import LoginRequest, TokenResponse
 from app.schemas.comment import CommentCreate, CommentResponse
 from app.schemas.team import TeamResponse
-from app.schemas.ticket import AssignmentUpdate, StatusUpdate, TicketCreate, TicketResponse
+from app.schemas.ticket import AssignmentUpdate, StatusUpdate, TicketCreate, TicketResponse, TicketReviewRequest
 from app.schemas.user import AssigneeUserResponse, UserResponse
 
 __all__ = [
@@ -19,6 +19,7 @@ __all__ = [
     "TeamResponse",
     "TicketCreate",
     "TicketResponse",
+    "TicketReviewRequest",
     "TokenResponse",
     "UserResponse",
 ]

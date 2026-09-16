@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, field_validator
 
-from app.enums import TicketStatus
+from app.enums import ReviewAction, TicketCategory, TicketPriority, TicketStatus, TeamCode
 
 
 class TicketCreate(BaseModel):
@@ -118,3 +118,24 @@ class TicketResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TicketReviewRequest(BaseModel):
+    action: ReviewAction
+    ai_run_id: Optional[int] = None
+
+    summary: Optional[str] = None
+    category: Optional[TicketCategory] = None
+    priority: Optional[TicketPriority] = None
+    priority_reason: Optional[str] = None
+    recommended_team: Optional[TeamCode] = None
+    initial_response: Optional[str] = None
+
+    model_config = ConfigDict(extra="forbid")
+
+    @field_validator("summary", "priority_reason", "initial_response")
+    @classmethod
+    def validate_text_not_whitespace(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and (not v or not v.strip()):
+            raise ValueError("Value cannot be blank or whitespace-only.")
+        return v

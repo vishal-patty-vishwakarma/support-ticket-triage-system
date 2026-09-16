@@ -64,6 +64,14 @@ class ActivityType(StrEnum):
     COMMENT_ADDED = "COMMENT_ADDED"
     TICKET_RESOLVED = "TICKET_RESOLVED"
     TICKET_CLOSED = "TICKET_CLOSED"
+    TRIAGE_UPDATED = "TRIAGE_UPDATED"
+
+
+class ReviewAction(StrEnum):
+    ACCEPT = "ACCEPT"
+    EDIT = "EDIT"
+    REJECT = "REJECT"
+    MANUAL = "MANUAL"
 
 
 class TeamCode(StrEnum):

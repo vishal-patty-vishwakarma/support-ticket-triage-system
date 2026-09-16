@@ -1,6 +1,6 @@
 import logging
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_ai_provider, get_current_user
@@ -9,8 +9,9 @@ from app.models.user import User
 from app.schemas.activity import ActivityResponse
 from app.schemas.ai import AIAnalysisRunResponse
 from app.schemas.comment import CommentCreate, CommentResponse
-from app.schemas.ticket import AssignmentUpdate, StatusUpdate, TicketCreate, TicketResponse
+from app.schemas.ticket import AssignmentUpdate, StatusUpdate, TicketCreate, TicketResponse, TicketReviewRequest
 from app.services import activity_service, ai_service, comment_service, ticket_service
+from app.services.review_service import ReviewError, process_review
 from app.services.ai.base import AIProvider
 from app.services.ai.exceptions import AIProviderError, AIValidationError
 
@@ -40,9 +41,23 @@ def create_new_ticket(
 def get_all_tickets(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    search: Optional[str] = Query(None, description="Search by ID, subject, customer name, email, or description"),
+    status_filter: Optional[str] = Query(None, alias="status", description="Filter by ticket status"),
+    category: Optional[str] = Query(None, description="Filter by category"),
+    priority: Optional[str] = Query(None, description="Filter by priority"),
+    assigned_team_id: Optional[int] = Query(None, description="Filter by assigned team ID"),
+    assigned_user_id: Optional[int] = Query(None, description="Filter by assigned user ID"),
 ):
-    """Retrieve all tickets ordered newest first."""
-    return ticket_service.list_tickets(db)
+    """Retrieve tickets with optional search and filters, ordered newest first."""
+    return ticket_service.list_tickets(
+        db,
+        search=search,
+        status=status_filter,
+        category=category,
+        priority=priority,
+        assigned_team_id=assigned_team_id,
+        assigned_user_id=assigned_user_id,
+    )
 
 
 @router.get("/{ticket_id}", response_model=TicketResponse)
@@ -305,6 +320,43 @@ def get_latest_ai_analysis(
         )
 
     return _build_run_response(run)
+
+
+@router.put("/{ticket_id}/review", response_model=TicketResponse)
+def review_ticket(
+    ticket_id: int,
+    review_in: TicketReviewRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Human review of AI suggestions or manual triage.
+
+    ACCEPT: copy AI run fields to ticket.
+    EDIT: override specific AI run fields.
+    REJECT: log rejection without modifying ticket.
+    MANUAL: apply triage fields without AI.
+    """
+    try:
+        return process_review(
+            db=db,
+            ticket_id=ticket_id,
+            review=review_in,
+            actor_id=current_user.id,
+        )
+    except ReviewError as err:
+        raise HTTPException(
+            status_code=err.status_code,
+            detail=err.detail,
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error(f"Failed to process review: {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to process review",
+        )
 
 
 def _build_run_response(run) -> AIAnalysisRunResponse:

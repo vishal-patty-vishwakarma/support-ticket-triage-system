@@ -324,6 +324,7 @@ Supported event types:
 - COMMENT_ADDED
 - TICKET_RESOLVED
 - TICKET_CLOSED
+- TRIAGE_UPDATED
 
 Activities are created by reusable service/helper logic.
 

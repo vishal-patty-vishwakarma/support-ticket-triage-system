@@ -1,5 +1,5 @@
 from typing import List, Optional, Set
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.orm import Session
 
 from app.enums import ActivityType, TicketStatus
@@ -47,9 +47,42 @@ def get_ticket(db: Session, ticket_id: int) -> Optional[Ticket]:
     return db.get(Ticket, ticket_id)
 
 
-def list_tickets(db: Session) -> List[Ticket]:
-    """List all tickets ordered newest first (created_at DESC, id DESC)."""
-    stmt = select(Ticket).order_by(Ticket.created_at.desc(), Ticket.id.desc())
+def list_tickets(
+    db: Session,
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    category: Optional[str] = None,
+    priority: Optional[str] = None,
+    assigned_team_id: Optional[int] = None,
+    assigned_user_id: Optional[int] = None,
+) -> List[Ticket]:
+    """List tickets with optional search and filters, ordered newest first."""
+    stmt = select(Ticket)
+
+    if search:
+        like_pattern = f"%{search}%"
+        search_clauses = [
+            Ticket.subject.ilike(like_pattern),
+            Ticket.customer_name.ilike(like_pattern),
+            Ticket.customer_email.ilike(like_pattern),
+            Ticket.description_original.ilike(like_pattern),
+        ]
+        if search.isdigit():
+            search_clauses.append(Ticket.id == int(search))
+        stmt = stmt.where(or_(*search_clauses))
+
+    if status:
+        stmt = stmt.where(Ticket.status == status)
+    if category:
+        stmt = stmt.where(Ticket.category == category)
+    if priority:
+        stmt = stmt.where(Ticket.priority == priority)
+    if assigned_team_id is not None:
+        stmt = stmt.where(Ticket.assigned_team_id == assigned_team_id)
+    if assigned_user_id is not None:
+        stmt = stmt.where(Ticket.assigned_user_id == assigned_user_id)
+
+    stmt = stmt.order_by(Ticket.created_at.desc(), Ticket.id.desc())
     return list(db.scalars(stmt).all())
 
 
