@@ -400,6 +400,66 @@ describe('Ticket Detail', () => {
   })
 })
 
+describe('FastAPI 422 validation error normalization', () => {
+  it('converts array detail to readable string', async () => {
+    const user = userEvent.setup()
+    mockFetch.mockResolvedValueOnce(mockError([
+      { loc: ['body', 'subject'], msg: 'Subject must be at least 10 characters.', type: 'value_error' },
+      { loc: ['body', 'description'], msg: 'Description must be at least 30 characters.', type: 'value_error' },
+    ], 422))
+
+    renderPage(
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+      </Routes>,
+      '/login'
+    )
+
+    await user.type(screen.getByLabelText(/email/i), 'test@example.com')
+    await user.type(screen.getByLabelText(/password/i), 'password')
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Subject must be at least 10 characters/)).toBeInTheDocument()
+    })
+  })
+})
+
+describe('404 AI analysis', () => {
+  it('shows No AI analysis yet instead of page error', async () => {
+    localStorage.setItem('token', 'fake-token')
+    localStorage.setItem('user', JSON.stringify(meResponse))
+
+    mockFetch
+      .mockResolvedValueOnce(mockJson(meResponse))
+      .mockResolvedValueOnce(mockJson({
+        id: 7, customer_name: 'C', customer_email: 'c@c.com',
+        subject: 'Subject for 404 test', description_original: 'Description for 404 AI analysis test.',
+        status: 'Open', priority: null, category: null, summary: null,
+        assigned_team_id: null, assigned_user_id: null, created_by: 1,
+        created_at: '2026-01-01T00:00:00', updated_at: '2026-01-01T00:00:00',
+      }))
+      .mockResolvedValueOnce(mockJson([]))
+      .mockResolvedValueOnce(mockJson([]))
+      .mockResolvedValueOnce(mockJson([]))
+      .mockResolvedValueOnce(mockJson([]))
+      .mockResolvedValueOnce(mockError('No AI analysis found for this ticket', 404))
+
+    renderPage(
+      <Routes>
+        <Route path="/tickets/:ticketId" element={<ProtectedRoute><TicketDetailPage /></ProtectedRoute>} />
+      </Routes>,
+      '/tickets/7'
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('No AI analysis yet.')).toBeInTheDocument()
+      expect(screen.getByText('Triage Manually')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('not found')).not.toBeInTheDocument()
+  })
+})
+
 describe('raw_response never displayed', () => {
   it('raw_response is not shown in AI analysis UI', async () => {
     localStorage.setItem('token', 'fake-token')
