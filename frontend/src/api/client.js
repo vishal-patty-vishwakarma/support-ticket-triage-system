@@ -36,8 +36,15 @@ async function request(method, path, body = null) {
   }
 
   if (!res.ok) {
-    const detail = data?.detail || `Request failed with status ${res.status}`
-    const error = new Error(detail)
+    let message = `Request failed with status ${res.status}`
+    if (data?.detail) {
+      if (Array.isArray(data.detail)) {
+        message = data.detail.map((d) => d.msg || String(d)).join('; ')
+      } else if (typeof data.detail === 'string') {
+        message = data.detail
+      }
+    }
+    const error = new Error(message)
     error.status = res.status
     error.data = data
     throw error
